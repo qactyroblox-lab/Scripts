@@ -1,0 +1,73 @@
+-- LocalScript for draggable button in StarterGui
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+-- Create ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "RodEventGui"
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- Create Button
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 140, 0, 40)
+button.Position = UDim2.new(0.5, -70, 0.5, -20)
+button.Text = "Catch With Rods"
+button.BackgroundColor3 = Color3.fromRGB(40, 170, 255)
+button.TextColor3 = Color3.new(1,1,1)
+button.Font = Enum.Font.SourceSansBold
+button.TextScaled = true
+button.Parent = screenGui
+button.Active = true
+
+-- Draggable logic for mobile AND PC
+local dragging
+local dragInput
+local dragStart
+local startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    button.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+button.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = button.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+button.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        dragInput = input
+    end
+end)
+
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+    if dragging and input == dragInput then
+        update(input)
+    end
+end)
+
+-- Button action: Fire RodEvent
+
+button.MouseButton1Click:Connect(function()
+    for _, tool in ipairs(player.Character:GetChildren()) do
+        if tool:FindFirstChild("RodEvent") and tool.RodEvent.FireServer then
+            local args = {
+                [1] = { ["action"] = "Catch" }
+            }
+            for i = 1, 1000 do
+                tool.RodEvent:FireServer(unpack(args))
+            end
+        end
+    end
+end)
