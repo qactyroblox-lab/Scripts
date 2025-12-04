@@ -1,0 +1,160 @@
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+local workspace = game:GetService("Workspace")
+
+-- Toggle state
+local detecting = false
+
+-- Minimal On/Off GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "OreNameGUI"
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
+
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Size = UDim2.new(0, 120, 0, 40)
+ToggleButton.Position = UDim2.new(0, 10, 0, 10)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.Text = "Detect Rocks: OFF"
+ToggleButton.Parent = ScreenGui
+
+ToggleButton.MouseButton1Click:Connect(function()
+    detecting = not detecting
+    ToggleButton.Text = detecting and "Detect Rocks: ON" or "Detect Rocks: OFF"
+end)
+
+-- Keep track of BillboardGuis
+local existingBillboards = {}
+
+-- Recursive function to get all children with Ore attribute
+local function getOreNamesFromRock(rock)
+    local oreNames = {}
+    local function recurseChildren(obj)
+        for _, child in pairs(obj:GetChildren()) do
+            if child:GetAttribute("Ore") then
+                table.insert(oreNames, child:GetAttribute("Ore"))
+            end
+            recurseChildren(child)
+        end
+    end
+    recurseChildren(rock)
+    return oreNames
+end
+
+-- Helper function to stack duplicate ores
+local function formatOreText(oreNames)
+    local counts = {}
+    for _, name in pairs(oreNames) do
+        counts[name] = (counts[name] or 0) + 1
+    end
+    local parts = {}
+    for name, count in pairs(counts) do
+        if count > 1 then
+            table.insert(parts, name .. " (" .. count .. "x)")
+        else
+            table.insert(parts, name)
+        end
+    end
+    return table.concat(parts, ", ")
+end
+
+-- Function to get all rocks in all places
+local function getNearbyRocks(radius)
+    local rocks = {}
+    local rocksFolder = workspace:WaitForChild("Rocks")
+
+    for _, placeFolder in pairs(rocksFolder:GetChildren()) do
+        if placeFolder:IsA("Folder") or placeFolder:IsA("Model") then
+            for _, spawnLocation in pairs(placeFolder:GetChildren()) do
+                if spawnLocation:IsA("BasePart") or spawnLocation:IsA("Model") then
+                    local childrenToCheck = spawnLocation:GetChildren()
+                    for _, rock in pairs(childrenToCheck) do
+                        if rock:IsA("Model") then
+                            local partToCheck = rock.PrimaryPart or rock:FindFirstChildWhichIsA("BasePart")
+                            if partToCheck then
+                                local distance = (hrp.Position - partToCheck.Position).Magnitude
+                                if distance <= radius then
+                                    table.insert(rocks, rock)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return rocks
+end
+
+-- Main loop
+RunService.RenderStepped:Connect(function()
+    if detecting then
+        local rocks = getNearbyRocks(50)
+
+        -- Remove billboards for rocks no longer nearby
+        for rock, gui in pairs(existingBillboards) do
+            if not table.find(rocks, rock) then
+                if gui and gui.Parent then
+                    gui:Destroy()
+                end
+                existingBillboards[rock] = nil
+            end
+        end
+
+        -- Add/update billboards
+        for _, rock in pairs(rocks) do
+            local oreNames = getOreNamesFromRock(rock)
+
+            -- Remove existing billboard if no ore left
+            if #oreNames == 0 then
+                local existing = existingBillboards[rock]
+                if existing and existing.Parent then
+                    existing:Destroy()
+                end
+                existingBillboards[rock] = nil
+            else
+                local partToAttach = rock.PrimaryPart or rock:FindFirstChildWhichIsA("BasePart")
+                
+                local billboard = existingBillboards[rock]
+                if not billboard then
+                    -- Create new billboard
+                    billboard = Instance.new("BillboardGui")
+                    billboard.Adornee = partToAttach
+                    billboard.Size = UDim2.new(0, 140, 0, 40)
+                    billboard.StudsOffset = Vector3.new(0, 3, 0)
+                    billboard.AlwaysOnTop = true
+                    billboard.Parent = rock
+
+                    local label = Instance.new("TextLabel")
+                    label.Size = UDim2.new(1, 0, 1, 0)
+                    label.BackgroundTransparency = 1
+                    label.TextColor3 = Color3.fromRGB(255, 255, 0)
+                    label.TextStrokeTransparency = 0
+                    label.TextScaled = true
+                    label.Parent = billboard
+
+                    existingBillboards[rock] = billboard
+                end
+
+                -- Update the text every frame
+                local label = billboard:FindFirstChildOfClass("TextLabel")
+                if label then
+                    label.Text = formatOreText(oreNames)
+                end
+            end
+        end
+    else
+        -- Remove all billboards when off
+        for rock, gui in pairs(existingBillboards) do
+            if gui and gui.Parent then
+                gui:Destroy()
+            end
+        end
+        existingBillboards = {}
+    end
+end)
