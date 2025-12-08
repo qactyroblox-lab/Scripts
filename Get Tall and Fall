@@ -3,7 +3,7 @@ local pg = player:WaitForChild("PlayerGui")
 local UIS = game:GetService("UserInputService")
 
 local running = false
-local firstEggAmount = -1 -- default value
+local firstEggAmount = 1 -- default value
 
 -- MAIN GUI
 local gui = Instance.new("ScreenGui", pg)
