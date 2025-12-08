@@ -1,91 +1,118 @@
-local args = {
-    [1] = {
-        ["eggName"] = "egg1",
-        ["kind"] = "eggOpenRequest",
-        ["muchOpen"] = -999e999
-    }
-}
-
-game:GetService("ReplicatedStorage").Packages.Knit.Services.EggService.RE.remote:FireServer(unpack(args))
-
-
-
 local player = game:GetService("Players").LocalPlayer
 local pg = player:WaitForChild("PlayerGui")
 local UIS = game:GetService("UserInputService")
 
 local running = false
+local firstEggAmount = -1 -- default value
 
--- Create GUI
+-- MAIN GUI
 local gui = Instance.new("ScreenGui", pg)
 gui.Name = "ToggleGUI"
 
-local button = Instance.new("TextButton", gui)
-button.Size = UDim2.new(0, 150, 0, 50)
-button.Position = UDim2.new(0.5, -75, 0.6, 0)
-button.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-button.Text = "OFF"
+-- Input Box (smaller)
+local inputBox = Instance.new("TextBox", gui)
+inputBox.Size = UDim2.new(0, 120, 0, 30)
+inputBox.Position = UDim2.new(0.5, -60, 0.4, 0)
+inputBox.PlaceholderText = "Enter number"
+inputBox.Text = tostring(firstEggAmount)
+inputBox.ClearTextOnFocus = false
+inputBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+inputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 
---// DRAGGING SYSTEM
+-- Fire Button under the textbox
+local fireButton = Instance.new("TextButton", gui)
+fireButton.Size = UDim2.new(0, 120, 0, 30)
+fireButton.Position = UDim2.new(0.5, -60, 0.46, 0)
+fireButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+fireButton.Text = "Give Trophy"
+
+-- Toggle Button
+local toggleButton = Instance.new("TextButton", gui)
+toggleButton.Size = UDim2.new(0, 120, 0, 30)
+toggleButton.Position = UDim2.new(0.5, -60, 0.52, 0)
+toggleButton.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+toggleButton.Text = "OFF"
+
+-- DRAGGING both GUIs together
 local dragging = false
-local dragStart, startPos
+local dragStart, startPosInput, startPosFire, startPosToggle
 
 local function update(input)
-    local delta = input.Position - dragStart
-    button.Position = UDim2.new(
-        startPos.X.Scale,
-        startPos.X.Offset + delta.X,
-        startPos.Y.Scale,
-        startPos.Y.Offset + delta.Y
-    )
+	local delta = input.Position - dragStart
+	inputBox.Position = UDim2.new(startPosInput.X.Scale, startPosInput.X.Offset + delta.X,
+	                               startPosInput.Y.Scale, startPosInput.Y.Offset + delta.Y)
+	fireButton.Position = UDim2.new(startPosFire.X.Scale, startPosFire.X.Offset + delta.X,
+	                                 startPosFire.Y.Scale, startPosFire.Y.Offset + delta.Y)
+	toggleButton.Position = UDim2.new(startPosToggle.X.Scale, startPosToggle.X.Offset + delta.X,
+	                                  startPosToggle.Y.Scale, startPosToggle.Y.Offset + delta.Y)
 end
 
-button.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 
-    or input.UserInputType == Enum.UserInputType.Touch then
-        
-        dragging = true
-        dragStart = input.Position
-        startPos = button.Position
-        
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
+for _, obj in pairs({inputBox, fireButton, toggleButton}) do
+	obj.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or
+		   input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPosInput = inputBox.Position
+			startPosFire = fireButton.Position
+			startPosToggle = toggleButton.Position
+
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+
+	obj.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or
+		   input.UserInputType == Enum.UserInputType.Touch then
+			if dragging then
+				update(input)
+			end
+		end
+	end)
+end
+
+-- FIRE BUTTON functionality
+fireButton.MouseButton1Click:Connect(function()
+	local num = tonumber(inputBox.Text)
+	if num then
+		firstEggAmount = -math.abs(num)
+		local argsFirst = {
+			[1] = {
+				eggName = "egg1",
+				kind = "eggOpenRequest",
+				muchOpen = firstEggAmount
+			}
+		}
+		game:GetService("ReplicatedStorage")
+			.Packages.Knit.Services.EggService.RE.remote:FireServer(unpack(argsFirst))
+	end
 end)
 
-button.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement 
-    or input.UserInputType == Enum.UserInputType.Touch then
-        if dragging then
-            update(input)
-        end
-    end
+-- TOGGLE BUTTON functionality
+toggleButton.MouseButton1Click:Connect(function()
+	running = not running
+	toggleButton.Text = running and "ON" or "OFF"
+	toggleButton.BackgroundColor3 = running and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(170, 0, 0)
 end)
 
--- Toggle system
-button.MouseButton1Click:Connect(function()
-    running = not running
-    button.Text = running and "ON" or "OFF"
-    button.BackgroundColor3 = running 
-        and Color3.fromRGB(0, 170, 0) 
-        or Color3.fromRGB(170, 0, 0)
-end)
-
--- Loop that uses YOUR SCRIPT
+-- LOOP for normal eggs
 task.spawn(function()
-    while true do
-        if running then
-            local args = {
-    [1] = {
-        ["eggName"] = "robuxEgg5",
-        ["kind"] = "eggOpenRequest",
-        ["muchOpen"] = 1
-    }
-}
-
-game:GetService("ReplicatedStorage").Packages.Knit.Services.EggService.RE.remote:FireServer(unpack(args))
-
+	while true do
+		if running then
+			local argsLoop = {
+				[1] = {
+					eggName = "robuxEgg5",
+					kind = "eggOpenRequest",
+					muchOpen = 1
+				}
+			}
+			game:GetService("ReplicatedStorage")
+				.Packages.Knit.Services.EggService.RE.remote:FireServer(unpack(argsLoop))
+		end
+		task.wait(2)
+	end
 end)
