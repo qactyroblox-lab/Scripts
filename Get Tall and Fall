@@ -1,0 +1,91 @@
+local args = {
+    [1] = {
+        ["eggName"] = "egg1",
+        ["kind"] = "eggOpenRequest",
+        ["muchOpen"] = -999e999
+    }
+}
+
+game:GetService("ReplicatedStorage").Packages.Knit.Services.EggService.RE.remote:FireServer(unpack(args))
+
+
+
+local player = game:GetService("Players").LocalPlayer
+local pg = player:WaitForChild("PlayerGui")
+local UIS = game:GetService("UserInputService")
+
+local running = false
+
+-- Create GUI
+local gui = Instance.new("ScreenGui", pg)
+gui.Name = "ToggleGUI"
+
+local button = Instance.new("TextButton", gui)
+button.Size = UDim2.new(0, 150, 0, 50)
+button.Position = UDim2.new(0.5, -75, 0.6, 0)
+button.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+button.Text = "OFF"
+
+--// DRAGGING SYSTEM
+local dragging = false
+local dragStart, startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    button.Position = UDim2.new(
+        startPos.X.Scale,
+        startPos.X.Offset + delta.X,
+        startPos.Y.Scale,
+        startPos.Y.Offset + delta.Y
+    )
+end
+
+button.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 
+    or input.UserInputType == Enum.UserInputType.Touch then
+        
+        dragging = true
+        dragStart = input.Position
+        startPos = button.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+button.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement 
+    or input.UserInputType == Enum.UserInputType.Touch then
+        if dragging then
+            update(input)
+        end
+    end
+end)
+
+-- Toggle system
+button.MouseButton1Click:Connect(function()
+    running = not running
+    button.Text = running and "ON" or "OFF"
+    button.BackgroundColor3 = running 
+        and Color3.fromRGB(0, 170, 0) 
+        or Color3.fromRGB(170, 0, 0)
+end)
+
+-- Loop that uses YOUR SCRIPT
+task.spawn(function()
+    while true do
+        if running then
+            local args = {
+    [1] = {
+        ["eggName"] = "robuxEgg5",
+        ["kind"] = "eggOpenRequest",
+        ["muchOpen"] = 1
+    }
+}
+
+game:GetService("ReplicatedStorage").Packages.Knit.Services.EggService.RE.remote:FireServer(unpack(args))
+
+end)
