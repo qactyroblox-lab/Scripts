@@ -1,0 +1,133 @@
+--// SAFETY: DESTROY TSUNAMIS
+pcall(function()
+    if workspace:FindFirstChild("ActiveTsunamis") then
+        workspace.ActiveTsunamis:Destroy()
+    end
+end)
+
+--// GLOBAL TOGGLE
+getgenv().SecretFarmLoop = false
+
+--// SERVICES
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+--// CHARACTER HELPER
+local function getChar()
+    local char = player.Character or player.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart")
+    return char, hrp
+end
+
+--// FIXED SPAWN / RETURN
+local returnCFrame = CFrame.new(61, 3, 20)
+
+--// PRELOAD LOCATION
+local preloadCFrame = CFrame.new(2471, 3, -4)
+
+--// SECRET FOLDER
+local secretFolder = workspace.ActiveBrainrots.Secret
+
+-------------------------------------------------
+-- GUI
+-------------------------------------------------
+local gui = Instance.new("ScreenGui")
+gui.Name = "SecretCollectorGUI"
+gui.ResetOnSpawn = false
+
+pcall(function()
+    gui.Parent = game:GetService("CoreGui")
+end)
+if not gui.Parent then
+    gui.Parent = player:WaitForChild("PlayerGui")
+end
+
+local btn = Instance.new("TextButton")
+btn.Parent = gui
+btn.Size = UDim2.new(0, 140, 0, 36)
+btn.Position = UDim2.new(0.5, -70, 0.8, 0)
+btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+btn.Text = "Secret Farm: OFF"
+btn.TextSize = 14
+btn.Active = true
+btn.Draggable = true
+btn.BorderSizePixel = 0
+
+-------------------------------------------------
+-- HELPER FUNCTION
+-------------------------------------------------
+local function findUnusedSecret(used)
+    for _, obj in ipairs(secretFolder:GetChildren()) do
+        if not used[obj] then
+            local handle = obj:FindFirstChild("Handle")
+            if handle then
+                local prompt = handle:FindFirstChild("TakePrompt")
+                if prompt and prompt:IsA("ProximityPrompt") then
+                    return obj, handle
+                end
+            end
+        end
+    end
+end
+
+local function collect5Secrets()
+    local _, hrp = getChar()
+
+    -- PRELOAD ONCE
+    hrp.CFrame = preloadCFrame
+    task.wait(0.6)
+
+    local usedSecrets = {}
+    local collected = 0
+
+    while collected < 5 do
+        if not getgenv().SecretFarmLoop then return end
+        task.wait(0.2)
+
+        local secret, handle = findUnusedSecret(usedSecrets)
+        if not secret then
+            warn("No more unused secrets")
+            break
+        end
+
+        usedSecrets[secret] = true
+
+        -- TP to secret
+        hrp.CFrame = handle.CFrame + Vector3.new(0, 2, 0)
+        task.wait(0.2)
+
+        -- Fire prompt
+        fireproximityprompt(handle.TakePrompt)
+        collected += 1
+        task.wait(0.35)
+    end
+
+    -- RETURN TO SPAWN
+    hrp.CFrame = returnCFrame
+
+    -- 🔹 WAIT 2 SECONDS AT SPAWN BEFORE NEXT LOOP
+    task.wait(2)
+end
+
+-------------------------------------------------
+-- LOOP THREAD (sequential)
+-------------------------------------------------
+task.spawn(function()
+    while true do
+        if getgenv().SecretFarmLoop then
+            -- This ensures each run finishes and waits at return before looping
+            pcall(collect5Secrets)
+        else
+            task.wait(0.5)
+        end
+    end
+end)
+
+-------------------------------------------------
+-- BUTTON CLICK TOGGLE
+-------------------------------------------------
+btn.MouseButton1Click:Connect(function()
+    getgenv().SecretFarmLoop = not getgenv().SecretFarmLoop
+    btn.Text = getgenv().SecretFarmLoop and "Secret Farm: ON" or "Secret Farm: OFF"
+end)
