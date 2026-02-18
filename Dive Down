@@ -1,0 +1,161 @@
+--// STOP OLD LOOP
+if getgenv().FishFarmLoop ~= nil then
+    getgenv().FishFarmLoop = false
+    task.wait()
+end
+
+getgenv().FishFarmLoop = false
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local StartPosition = CFrame.new(-1992, 1234, -1473)
+local ReturnPosition = CFrame.new(-1930, 2532, -1415)
+
+-- Fishes that are lower priority
+local DeprioritizedFishes = {
+    ["Shrimp"] = true,
+    ["Slickhead"] = true,
+    ["Gulper"] = true,
+    ["Rockfish"] = true,
+}
+
+-- GUI
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+
+local Toggle = Instance.new("TextButton")
+Toggle.Size = UDim2.new(0,150,0,50)
+Toggle.Position = UDim2.new(0,20,0,200)
+Toggle.Text = "Fish Farm: OFF"
+Toggle.BackgroundColor3 = Color3.fromRGB(255,60,60)
+Toggle.Parent = ScreenGui
+
+--------------------------------------------------
+-- 🔁 40 SECOND RESET TIMER
+--------------------------------------------------
+
+local function StartResetTimer()
+    task.spawn(function()
+        while getgenv().FishFarmLoop do
+            task.wait(40)
+
+            if not getgenv().FishFarmLoop then
+                return
+            end
+
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                local hrp = LocalPlayer.Character.HumanoidRootPart
+
+                -- TP to return
+                hrp.CFrame = ReturnPosition
+
+                -- Stay 2 seconds
+                task.wait(2)
+
+                if not getgenv().FishFarmLoop then
+                    return
+                end
+
+                -- TP back to start
+                hrp.CFrame = StartPosition
+                task.wait(1)
+            end
+        end
+    end)
+end
+
+--------------------------------------------------
+-- 🎣 FARM LOOP
+--------------------------------------------------
+
+local function TeleportAndFire()
+    while getgenv().FishFarmLoop do
+
+        local fishes = workspace:FindFirstChild("Game")
+            and workspace.Game:FindFirstChild("Fishes")
+
+        if fishes then
+            local highPriority = {}
+            local lowPriority = {}
+
+            -- Split fishes
+            for _, model in pairs(fishes:GetChildren()) do
+                local zoneObject = model:FindFirstChild("ZoneObject")
+                if zoneObject and zoneObject.Value
+                   and zoneObject.Value.Name == "TheDeepDark" then
+
+                    if DeprioritizedFishes[model.Name] then
+                        table.insert(lowPriority, model)
+                    else
+                        table.insert(highPriority, model)
+                    end
+                end
+            end
+
+            local function process(list)
+                for _, model in pairs(list) do
+                    if not getgenv().FishFarmLoop then break end
+
+                    local part = model:FindFirstChildWhichIsA("BasePart", true)
+                    local prompt = model:FindFirstChildWhichIsA("ProximityPrompt", true)
+
+                    if part and prompt and LocalPlayer.Character
+                       and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+
+                        local hrp = LocalPlayer.Character.HumanoidRootPart
+
+                        -- TP to fish
+                        hrp.CFrame = part.CFrame * CFrame.new(0,0,-2)
+
+                        task.wait(0.4)
+
+                        -- Fire prompt
+                        fireproximityprompt(prompt, prompt.HoldDuration)
+
+                        task.wait(0.2)
+                    end
+                end
+            end
+
+            -- High priority first
+            process(highPriority)
+
+            -- Then low priority
+            process(lowPriority)
+        end
+
+        task.wait(0.1)
+    end
+end
+
+--------------------------------------------------
+-- 🔘 TOGGLE BUTTON
+--------------------------------------------------
+
+Toggle.MouseButton1Click:Connect(function()
+    getgenv().FishFarmLoop = not getgenv().FishFarmLoop
+
+    if getgenv().FishFarmLoop then
+        Toggle.Text = "Fish Farm: ON"
+        Toggle.BackgroundColor3 = Color3.fromRGB(60,255,60)
+
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            -- TP to start
+            LocalPlayer.Character.HumanoidRootPart.CFrame = StartPosition
+        end
+
+        task.wait(1)
+
+        task.spawn(TeleportAndFire)
+        StartResetTimer()
+
+    else
+        Toggle.Text = "Fish Farm: OFF"
+        Toggle.BackgroundColor3 = Color3.fromRGB(255,60,60)
+
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            -- Immediate return on OFF
+            LocalPlayer.Character.HumanoidRootPart.CFrame = ReturnPosition
+        end
+    end
+end)
