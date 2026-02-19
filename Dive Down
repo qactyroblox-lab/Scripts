@@ -3,7 +3,6 @@ if getgenv().FishFarmLoop ~= nil then
     getgenv().FishFarmLoop = false
     task.wait()
 end
-
 getgenv().FishFarmLoop = false
 
 local Players = game:GetService("Players")
@@ -12,14 +11,12 @@ local LocalPlayer = Players.LocalPlayer
 local StartPosition = CFrame.new(-1891, 79, -1471)
 local ReturnPosition = CFrame.new(-1930, 2532, -1415)
 
--- Only CrabFish is lowest priority now
 local LowPriorityFish = {
-    ["CrabFish"] = true,
+    ["Crabfish"] = true,
 }
 
 -- GUI
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
-
 local Toggle = Instance.new("TextButton")
 Toggle.Size = UDim2.new(0,150,0,50)
 Toggle.Position = UDim2.new(0,20,0,200)
@@ -27,36 +24,44 @@ Toggle.Text = "Fish Farm: OFF"
 Toggle.BackgroundColor3 = Color3.fromRGB(255,60,60)
 Toggle.Parent = ScreenGui
 
---------------------------------------------------
--- 🔁 40 SECOND RESET TIMER
---------------------------------------------------
+----------------------------------------------------
+-- PLATFORM SYSTEM
+----------------------------------------------------
+local CurrentPlatform = nil
 
-local function StartResetTimer()
-    task.spawn(function()
-        while getgenv().FishFarmLoop do
-            task.wait(40)
+local function CreatePlatform(position)
+    if CurrentPlatform then
+        CurrentPlatform:Destroy()
+    end
 
-            if not getgenv().FishFarmLoop then return end
+    local part = Instance.new("Part")
+    part.Size = Vector3.new(8, 1, 8)
+    part.Anchored = true
+    part.Transparency = 1
+    part.CanCollide = true
+    part.CFrame = CFrame.new(position.X, position.Y - 3, position.Z)
+    part.Parent = workspace
 
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                local hrp = LocalPlayer.Character.HumanoidRootPart
-
-                hrp.CFrame = ReturnPosition
-                task.wait(2)
-
-                if not getgenv().FishFarmLoop then return end
-
-                hrp.CFrame = StartPosition
-                task.wait(1)
-            end
-        end
-    end)
+    CurrentPlatform = part
 end
 
---------------------------------------------------
--- 🎣 FARM LOOP
---------------------------------------------------
+----------------------------------------------------
+-- SAFE TELEPORT WITH PLATFORM
+----------------------------------------------------
+local function SafeTeleport(cf)
+    local char = LocalPlayer.Character
+    if not char then return end
 
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    hrp.CFrame = cf
+    CreatePlatform(hrp.Position)
+end
+
+----------------------------------------------------
+-- FARM LOOP
+----------------------------------------------------
 local function TeleportAndFire()
     while getgenv().FishFarmLoop do
 
@@ -70,9 +75,8 @@ local function TeleportAndFire()
             for _, model in pairs(fishes:GetChildren()) do
                 local zoneObject = model:FindFirstChild("ZoneObject")
 
-                -- 🔥 ZONE CHANGED TO ATLANTIS
                 if zoneObject and zoneObject.Value
-                   and zoneObject.Value.Name == "Atlantis" then
+                and zoneObject.Value.Name == "Atlantis" then
 
                     if LowPriorityFish[model.Name] then
                         table.insert(lowPriority, model)
@@ -89,57 +93,54 @@ local function TeleportAndFire()
                     local part = model:FindFirstChildWhichIsA("BasePart", true)
                     local prompt = model:FindFirstChildWhichIsA("ProximityPrompt", true)
 
-                    if part and prompt and LocalPlayer.Character
-                       and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    if part and prompt then
+                        SafeTeleport(part.CFrame * CFrame.new(0,0,-2))
 
-                        local hrp = LocalPlayer.Character.HumanoidRootPart
-
-                        hrp.CFrame = part.CFrame * CFrame.new(0,0,-2)
                         task.wait(0.4)
 
+                        if not getgenv().FishFarmLoop then break end
+
                         fireproximityprompt(prompt, prompt.HoldDuration)
+
                         task.wait(0.2)
                     end
                 end
             end
 
-            -- High priority first
             process(highPriority)
-
-            -- Then CrabFish last
             process(lowPriority)
         end
 
-        task.wait(0.1)
+        task.wait(0.05)
     end
 end
 
---------------------------------------------------
--- 🔘 TOGGLE
---------------------------------------------------
-
+----------------------------------------------------
+-- TOGGLE
+----------------------------------------------------
 Toggle.MouseButton1Click:Connect(function()
+
     getgenv().FishFarmLoop = not getgenv().FishFarmLoop
 
     if getgenv().FishFarmLoop then
         Toggle.Text = "Fish Farm: ON"
         Toggle.BackgroundColor3 = Color3.fromRGB(60,255,60)
 
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            LocalPlayer.Character.HumanoidRootPart.CFrame = StartPosition
-        end
-
+        SafeTeleport(StartPosition)
         task.wait(1)
 
         task.spawn(TeleportAndFire)
-        StartResetTimer()
 
     else
         Toggle.Text = "Fish Farm: OFF"
         Toggle.BackgroundColor3 = Color3.fromRGB(255,60,60)
 
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            LocalPlayer.Character.HumanoidRootPart.CFrame = ReturnPosition
+        SafeTeleport(ReturnPosition)
+
+        if CurrentPlatform then
+            CurrentPlatform:Destroy()
+            CurrentPlatform = nil
         end
     end
 end)
+
