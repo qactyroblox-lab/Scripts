@@ -9,15 +9,12 @@ getgenv().FishFarmLoop = false
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
-local StartPosition = CFrame.new(-1992, 1234, -1473)
+local StartPosition = CFrame.new(-1891, 79, -1471)
 local ReturnPosition = CFrame.new(-1930, 2532, -1415)
 
--- Fishes that are lower priority
-local DeprioritizedFishes = {
-    ["Shrimp"] = true,
-    ["Slickhead"] = true,
-    ["Gulper"] = true,
-    ["Rockfish"] = true,
+-- Only CrabFish is lowest priority now
+local LowPriorityFish = {
+    ["CrabFish"] = true,
 }
 
 -- GUI
@@ -39,24 +36,16 @@ local function StartResetTimer()
         while getgenv().FishFarmLoop do
             task.wait(40)
 
-            if not getgenv().FishFarmLoop then
-                return
-            end
+            if not getgenv().FishFarmLoop then return end
 
             if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
                 local hrp = LocalPlayer.Character.HumanoidRootPart
 
-                -- TP to return
                 hrp.CFrame = ReturnPosition
-
-                -- Stay 2 seconds
                 task.wait(2)
 
-                if not getgenv().FishFarmLoop then
-                    return
-                end
+                if not getgenv().FishFarmLoop then return end
 
-                -- TP back to start
                 hrp.CFrame = StartPosition
                 task.wait(1)
             end
@@ -78,13 +67,14 @@ local function TeleportAndFire()
             local highPriority = {}
             local lowPriority = {}
 
-            -- Split fishes
             for _, model in pairs(fishes:GetChildren()) do
                 local zoneObject = model:FindFirstChild("ZoneObject")
-                if zoneObject and zoneObject.Value
-                   and zoneObject.Value.Name == "TheDeepDark" then
 
-                    if DeprioritizedFishes[model.Name] then
+                -- 🔥 ZONE CHANGED TO ATLANTIS
+                if zoneObject and zoneObject.Value
+                   and zoneObject.Value.Name == "Atlantis" then
+
+                    if LowPriorityFish[model.Name] then
                         table.insert(lowPriority, model)
                     else
                         table.insert(highPriority, model)
@@ -104,14 +94,10 @@ local function TeleportAndFire()
 
                         local hrp = LocalPlayer.Character.HumanoidRootPart
 
-                        -- TP to fish
                         hrp.CFrame = part.CFrame * CFrame.new(0,0,-2)
-
                         task.wait(0.4)
 
-                        -- Fire prompt
                         fireproximityprompt(prompt, prompt.HoldDuration)
-
                         task.wait(0.2)
                     end
                 end
@@ -120,7 +106,7 @@ local function TeleportAndFire()
             -- High priority first
             process(highPriority)
 
-            -- Then low priority
+            -- Then CrabFish last
             process(lowPriority)
         end
 
@@ -129,7 +115,7 @@ local function TeleportAndFire()
 end
 
 --------------------------------------------------
--- 🔘 TOGGLE BUTTON
+-- 🔘 TOGGLE
 --------------------------------------------------
 
 Toggle.MouseButton1Click:Connect(function()
@@ -140,7 +126,6 @@ Toggle.MouseButton1Click:Connect(function()
         Toggle.BackgroundColor3 = Color3.fromRGB(60,255,60)
 
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            -- TP to start
             LocalPlayer.Character.HumanoidRootPart.CFrame = StartPosition
         end
 
@@ -154,7 +139,6 @@ Toggle.MouseButton1Click:Connect(function()
         Toggle.BackgroundColor3 = Color3.fromRGB(255,60,60)
 
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            -- Immediate return on OFF
             LocalPlayer.Character.HumanoidRootPart.CFrame = ReturnPosition
         end
     end
