@@ -11,6 +11,13 @@ local LocalPlayer = Players.LocalPlayer
 local StartPosition = CFrame.new(-1891, 79, -1471)
 local ReturnPosition = CFrame.new(-1930, 2532, -1415)
 
+-- Priority order
+local PriorityOrder = {
+    ["Mermaid"] = 1,
+    ["Peeber"] = 2,
+    ["Rubyfish"] = 3,
+}
+
 local LowPriorityFish = {
     ["Crabfish"] = true,
 }
@@ -57,73 +64,77 @@ local function SafeTeleport(cf)
 end
 
 ----------------------------------------------------
--- PRIORITY CACHE (REFRESH EVERY 2 SEC)
+-- GET SORTED FISH LIST (CALLED AFTER EVERY CATCH)
 ----------------------------------------------------
-local CachedHigh = {}
-local CachedLow = {}
+local function GetSortedFish()
 
-local function RefreshFishList()
-    while getgenv().FishFarmLoop do
-        local fishes = workspace:FindFirstChild("Game")
-            and workspace.Game:FindFirstChild("Fishes")
+    local fishes = workspace:FindFirstChild("Game")
+        and workspace.Game:FindFirstChild("Fishes")
 
-        local newHigh = {}
-        local newLow = {}
+    local tempList = {}
 
-        if fishes then
-            for _, model in pairs(fishes:GetChildren()) do
-                local zoneObject = model:FindFirstChild("ZoneObject")
+    if fishes then
+        for _, model in pairs(fishes:GetChildren()) do
+            local zoneObject = model:FindFirstChild("ZoneObject")
 
-                if zoneObject and zoneObject.Value
-                and zoneObject.Value.Name == "Atlantis" then
-
-                    if LowPriorityFish[model.Name] then
-                        table.insert(newLow, model)
-                    else
-                        table.insert(newHigh, model)
-                    end
-                end
+            if zoneObject and zoneObject.Value
+            and zoneObject.Value.Name == "Atlantis" then
+                table.insert(tempList, model)
             end
         end
-
-        CachedHigh = newHigh
-        CachedLow = newLow
-
-        task.wait(1) -- 🔥 refresh every 2 seconds
     end
+
+    table.sort(tempList, function(a, b)
+
+        -- Crabfish always last
+        if LowPriorityFish[a.Name] and not LowPriorityFish[b.Name] then
+            return false
+        elseif LowPriorityFish[b.Name] and not LowPriorityFish[a.Name] then
+            return true
+        end
+
+        -- Custom priority
+        local pa = PriorityOrder[a.Name] or 999
+        local pb = PriorityOrder[b.Name] or 999
+
+        return pa < pb
+    end)
+
+    return tempList
 end
 
 ----------------------------------------------------
 -- FARM LOOP
 ----------------------------------------------------
 local function TeleportAndFire()
+
     while getgenv().FishFarmLoop do
 
-        local function process(list)
-            for _, model in pairs(list) do
-                if not getgenv().FishFarmLoop then break end
+        local fishList = GetSortedFish()
 
-                if model and model.Parent then
-                    local part = model:FindFirstChildWhichIsA("BasePart", true)
-                    local prompt = model:FindFirstChildWhichIsA("ProximityPrompt", true)
+        for _, model in ipairs(fishList) do
+            if not getgenv().FishFarmLoop then break end
 
-                    if part and prompt then
-                        SafeTeleport(part.CFrame * CFrame.new(0,0,-2))
+            if model and model.Parent then
+                local part = model:FindFirstChildWhichIsA("BasePart", true)
+                local prompt = model:FindFirstChildWhichIsA("ProximityPrompt", true)
 
-                        task.wait(0.4)
+                if part and prompt then
+                    SafeTeleport(part.CFrame * CFrame.new(0,0,-2))
 
-                        if not getgenv().FishFarmLoop then break end
+                    task.wait(0.4)
 
-                        fireproximityprompt(prompt, prompt.HoldDuration)
+                    if not getgenv().FishFarmLoop then break end
 
-                        task.wait(0.2)
-                    end
+                    fireproximityprompt(prompt, prompt.HoldDuration)
+
+                    task.wait(0.2)
+
+                    -- 🔥 Immediately rescan after every catch
+                    break
                 end
             end
         end
-
-        process(CachedHigh)
-        process(CachedLow)
 
         task.wait(0.05)
     end
@@ -143,7 +154,6 @@ Toggle.MouseButton1Click:Connect(function()
         SafeTeleport(StartPosition)
         task.wait(1)
 
-        task.spawn(RefreshFishList) -- start 2 sec checker
         task.spawn(TeleportAndFire)
 
     else
@@ -158,3 +168,4 @@ Toggle.MouseButton1Click:Connect(function()
         end
     end
 end)
+
