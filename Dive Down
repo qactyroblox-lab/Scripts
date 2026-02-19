@@ -35,7 +35,7 @@ local function CreatePlatform(position)
     end
 
     local part = Instance.new("Part")
-    part.Size = Vector3.new(8, 1, 8)
+    part.Size = Vector3.new(8,1,8)
     part.Anchored = true
     part.Transparency = 1
     part.CanCollide = true
@@ -45,9 +45,6 @@ local function CreatePlatform(position)
     CurrentPlatform = part
 end
 
-----------------------------------------------------
--- SAFE TELEPORT WITH PLATFORM
-----------------------------------------------------
 local function SafeTeleport(cf)
     local char = LocalPlayer.Character
     if not char then return end
@@ -60,18 +57,20 @@ local function SafeTeleport(cf)
 end
 
 ----------------------------------------------------
--- FARM LOOP
+-- PRIORITY CACHE (REFRESH EVERY 2 SEC)
 ----------------------------------------------------
-local function TeleportAndFire()
-    while getgenv().FishFarmLoop do
+local CachedHigh = {}
+local CachedLow = {}
 
+local function RefreshFishList()
+    while getgenv().FishFarmLoop do
         local fishes = workspace:FindFirstChild("Game")
             and workspace.Game:FindFirstChild("Fishes")
 
-        if fishes then
-            local highPriority = {}
-            local lowPriority = {}
+        local newHigh = {}
+        local newLow = {}
 
+        if fishes then
             for _, model in pairs(fishes:GetChildren()) do
                 local zoneObject = model:FindFirstChild("ZoneObject")
 
@@ -79,17 +78,32 @@ local function TeleportAndFire()
                 and zoneObject.Value.Name == "Atlantis" then
 
                     if LowPriorityFish[model.Name] then
-                        table.insert(lowPriority, model)
+                        table.insert(newLow, model)
                     else
-                        table.insert(highPriority, model)
+                        table.insert(newHigh, model)
                     end
                 end
             end
+        end
 
-            local function process(list)
-                for _, model in pairs(list) do
-                    if not getgenv().FishFarmLoop then break end
+        CachedHigh = newHigh
+        CachedLow = newLow
 
+        task.wait(1) -- 🔥 refresh every 2 seconds
+    end
+end
+
+----------------------------------------------------
+-- FARM LOOP
+----------------------------------------------------
+local function TeleportAndFire()
+    while getgenv().FishFarmLoop do
+
+        local function process(list)
+            for _, model in pairs(list) do
+                if not getgenv().FishFarmLoop then break end
+
+                if model and model.Parent then
                     local part = model:FindFirstChildWhichIsA("BasePart", true)
                     local prompt = model:FindFirstChildWhichIsA("ProximityPrompt", true)
 
@@ -106,10 +120,10 @@ local function TeleportAndFire()
                     end
                 end
             end
-
-            process(highPriority)
-            process(lowPriority)
         end
+
+        process(CachedHigh)
+        process(CachedLow)
 
         task.wait(0.05)
     end
@@ -129,6 +143,7 @@ Toggle.MouseButton1Click:Connect(function()
         SafeTeleport(StartPosition)
         task.wait(1)
 
+        task.spawn(RefreshFishList) -- start 2 sec checker
         task.spawn(TeleportAndFire)
 
     else
@@ -143,4 +158,3 @@ Toggle.MouseButton1Click:Connect(function()
         end
     end
 end)
-
