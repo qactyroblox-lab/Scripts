@@ -64,10 +64,31 @@ local function SafeTeleport(cf)
 end
 
 ----------------------------------------------------
--- GET SORTED FISH LIST (CALLED AFTER EVERY CATCH)
+-- VISIT COUNTER FOR BROKEN FISH
+----------------------------------------------------
+local VisitCounter = {}
+
+local function CountVisit(model)
+    if not VisitCounter[model] then
+        VisitCounter[model] = 0
+    end
+    VisitCounter[model] = VisitCounter[model] + 1
+
+    if VisitCounter[model] >= 5 then
+        if model and model.Parent then
+            model:Destroy() -- remove broken fish
+        end
+        VisitCounter[model] = nil
+        return true -- indicates deleted
+    end
+
+    return false
+end
+
+----------------------------------------------------
+-- GET SORTED FISH LIST (AFTER EVERY CATCH)
 ----------------------------------------------------
 local function GetSortedFish()
-
     local fishes = workspace:FindFirstChild("Game")
         and workspace.Game:FindFirstChild("Fishes")
 
@@ -79,13 +100,12 @@ local function GetSortedFish()
 
             if zoneObject and zoneObject.Value
             and zoneObject.Value.Name == "Atlantis" then
-                table.insert(tempList, model)
+                tempList[#tempList+1] = model
             end
         end
     end
 
     table.sort(tempList, function(a, b)
-
         -- Crabfish always last
         if LowPriorityFish[a.Name] and not LowPriorityFish[b.Name] then
             return false
@@ -93,10 +113,8 @@ local function GetSortedFish()
             return true
         end
 
-        -- Custom priority
         local pa = PriorityOrder[a.Name] or 999
         local pb = PriorityOrder[b.Name] or 999
-
         return pa < pb
     end)
 
@@ -107,32 +125,34 @@ end
 -- FARM LOOP
 ----------------------------------------------------
 local function TeleportAndFire()
-
     while getgenv().FishFarmLoop do
-
         local fishList = GetSortedFish()
 
         for _, model in ipairs(fishList) do
             if not getgenv().FishFarmLoop then break end
+            if not model or not model.Parent then continue end
 
-            if model and model.Parent then
-                local part = model:FindFirstChildWhichIsA("BasePart", true)
-                local prompt = model:FindFirstChildWhichIsA("ProximityPrompt", true)
+            -- Check broken fish
+            if CountVisit(model) then
+                continue
+            end
 
-                if part and prompt then
-                    SafeTeleport(part.CFrame * CFrame.new(0,0,-2))
+            local part = model:FindFirstChildWhichIsA("BasePart", true)
+            local prompt = model:FindFirstChildWhichIsA("ProximityPrompt", true)
 
-                    task.wait(0.4)
+            if part and prompt then
+                SafeTeleport(part.CFrame * CFrame.new(0,0,-2))
 
-                    if not getgenv().FishFarmLoop then break end
+                task.wait(0.4)
 
-                    fireproximityprompt(prompt, prompt.HoldDuration)
+                if not getgenv().FishFarmLoop then break end
 
-                    task.wait(0.2)
+                fireproximityprompt(prompt, prompt.HoldDuration)
 
-                    -- 🔥 Immediately rescan after every catch
-                    break
-                end
+                task.wait(0.2)
+
+                -- Immediately rescan after catch
+                break
             end
         end
 
@@ -144,7 +164,6 @@ end
 -- TOGGLE
 ----------------------------------------------------
 Toggle.MouseButton1Click:Connect(function()
-
     getgenv().FishFarmLoop = not getgenv().FishFarmLoop
 
     if getgenv().FishFarmLoop then
@@ -168,4 +187,3 @@ Toggle.MouseButton1Click:Connect(function()
         end
     end
 end)
-
