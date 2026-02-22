@@ -15,7 +15,6 @@ local ReturnPosition = CFrame.new(-1930, 2532, -1415)
 local PriorityOrder = {
     ["Mermaid"] = 1,
     ["Peeber"] = 2,
-    ["Rubyfish"] = 3,
 }
 
 local LowPriorityFish = {
