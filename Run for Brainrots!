@@ -1,0 +1,108 @@
+-- ===== SETTINGS =====
+local basePosition = Vector3.new(-1, 19, 4140)
+local returnPosition = Vector3.new(-46, 19, -456)
+
+-- ===== STOP OLD LOOP =====
+if getgenv().CelestialSecretLoop then
+    getgenv().CelestialSecretLoop = false
+    task.wait(0.2)
+end
+getgenv().CelestialSecretLoop = true
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local function getHRP()
+    local char = player.Character or player.CharacterAdded:Wait()
+    return char:WaitForChild("HumanoidRootPart")
+end
+
+-- ===== SIMPLE BUTTON GUI =====
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+
+local button = Instance.new("TextButton", gui)
+button.Size = UDim2.new(0,150,0,50)
+button.Position = UDim2.new(0,20,0,200)
+button.BackgroundColor3 = Color3.fromRGB(170,0,0)
+button.TextColor3 = Color3.new(1,1,1)
+button.TextScaled = true
+button.Text = "AUTO: OFF"
+button.Active = true
+button.Draggable = true
+
+local enabled = false
+
+button.MouseButton1Click:Connect(function()
+    enabled = not enabled
+    button.Text = enabled and "AUTO: ON" or "AUTO: OFF"
+    button.BackgroundColor3 = enabled and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
+end)
+
+-- ===== FIRE PROMPT =====
+local function firePrompt(model)
+    local prompt = model:FindFirstChildWhichIsA("ProximityPrompt", true)
+    if prompt then
+        fireproximityprompt(prompt)
+    end
+end
+
+local function getTargetCFrame(target)
+    if target:IsA("Model") then
+        local part = target:FindFirstChildWhichIsA("BasePart", true)
+        if part then
+            return part.CFrame
+        end
+    elseif target:IsA("BasePart") then
+        return target.CFrame
+    end
+    return nil
+end
+
+-- ===== MAIN LOOP =====
+task.spawn(function()
+    while getgenv().CelestialSecretLoop do
+        if enabled then
+            local hrp = getHRP()
+
+            -- TP FIRST
+            hrp.CFrame = CFrame.new(basePosition)
+            task.wait(0.3)
+
+            local spawners = workspace:FindFirstChild("ItemSpawners")
+            if spawners then
+                local folder = spawners:FindFirstChild("Celestial")
+                if not folder or #folder:GetChildren() == 0 then
+                    folder = spawners:FindFirstChild("Secret")
+                end
+
+                if folder then
+                    for _, target in ipairs(folder:GetChildren()) do
+                        if not enabled then break end
+
+                        local targetCFrame = getTargetCFrame(target)
+                        if targetCFrame then
+                            hrp.CFrame = targetCFrame
+                            task.wait(0.4)
+
+                            firePrompt(target)
+
+                            task.wait(0.2)
+
+                            -- RETURN
+                            hrp.CFrame = CFrame.new(returnPosition)
+
+                            -- 🔥 NEW WAIT AFTER RETURN
+                            task.wait(0.5)
+
+                            -- Go back to base
+                            hrp.CFrame = CFrame.new(basePosition)
+                            task.wait(0.2)
+                        end
+                    end
+                end
+            end
+        end
+
+        task.wait(0.2)
+    end
+end)
